@@ -7,6 +7,7 @@ use axum::{
     extract::{Query, State},
     routing::{get, post},
 };
+use tower_http::cors::CorsLayer;
 use tracing::info;
 use tracing_subscriber::FmtSubscriber;
 
@@ -23,6 +24,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/queue", get(get_queue))
         .route("/queue", post(queue_robot))
         .route("/match", post(new_match))
+        .layer(CorsLayer::permissive())
         .with_state(state);
 
     let listener = tokio::net::TcpListener::bind(HOST).await.unwrap();
@@ -49,7 +51,7 @@ async fn get_queue(State(state): State<QueueState>) -> Json<Vec<String>> {
 }
 async fn queue_robot(
     State(mut state): State<QueueState>,
-    Query(team): Query<String>,
+    Json(team): Json<String>,
 ) -> Json<Vec<String>> {
     Json::from(state.queue_robot(team).clone())
 }

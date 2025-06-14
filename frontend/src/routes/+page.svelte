@@ -1,11 +1,26 @@
 <script lang="ts">
     import {assert} from "$lib/util"
 
-    const queue: string[] = $state(["1540", "3636"])
+    let queue: string[] = $state(["1540", "3636"])
     let client_team : string = $state("")
 
-    function join_queue() {
-        queue.push(client_team)
+    async function check_health() {
+        const res = await fetch("http://localhost:3000/health")
+        console.log("Health: " + res.ok)
+    }
+
+    async function join_queue() {
+        const res = await fetch("http://localhost:3000/queue", {
+            method: "POST",
+            body: client_team
+        })
+
+        if (!res.ok) {
+            console.error(`${client_team} failed to join queue: ${res.status}`)
+        }
+
+        const new_queue = await res.json()
+        queue = new_queue
     }
 
     function remove_from_queue(i: number) {
@@ -34,3 +49,4 @@
 {#if !in_queue}
     <button onclick={join_queue} class="outline p-2">Join Queue</button>
 {/if}
+<button class="outline p-2" onclick={check_health}>Check Health</button>
