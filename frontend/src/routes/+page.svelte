@@ -1,7 +1,7 @@
 <script lang="ts">
     import {assert} from "$lib/util"
 
-    let queue: string[] = $state(["1540", "3636"])
+    let queue: string[] = $state([])
     let client_team : string = $state("")
 
     async function check_health() {
@@ -12,7 +12,8 @@
     async function join_queue() {
         const res = await fetch("http://localhost:3000/queue", {
             method: "POST",
-            body: client_team
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(client_team)
         })
 
         if (!res.ok) {
@@ -23,10 +24,21 @@
         queue = new_queue
     }
 
-    function remove_from_queue(i: number) {
+    async function leave_queue(i: number) {
         assert(i >= 0 && queue.length > i, `Expected usize within bounds, found: ${i} for length ${queue.length}`)
 
-        queue.splice(i)
+        const res = await fetch("http://localhost:3000/dequeue", {
+            method: "POST",
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(client_team)
+        })
+
+        if (!res.ok) {
+            console.error(`${client_team} not in queue`)
+        }
+
+        const new_queue = await res.json()
+        queue = new_queue
     }
 
     const in_queue = $derived(queue.includes(client_team))
@@ -40,13 +52,13 @@
     <div class="flex flex-row gap-2">
         <div class="bg-gunmetal p-2 rounded">{team}</div>
         {#if team === client_team}
-            <button class="outline p-2" onclick={() => remove_from_queue(i)}>X</button>
+            <button class="outline p-2" onclick={() => leave_queue(i)}>X</button>
         {/if}
     </div>
 {/each}
 
 <input type="text" placeholder="Your Team" bind:value={client_team}>
-{#if !in_queue}
+{#if !in_queue && client_team != ""}
     <button onclick={join_queue} class="outline p-2">Join Queue</button>
 {/if}
 <button class="outline p-2" onclick={check_health}>Check Health</button>
