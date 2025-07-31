@@ -1,0 +1,35 @@
+name: Update Bun.nix
+
+on:
+  push:
+    paths:
+      - frontend/bun.lock
+      - frontend/bun.nix
+  pull_request:
+    paths:
+      - frontend/bun.lock
+      - frontend/bun.nix
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    name: Update Bun.nix
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: cachix/install-nix-action@v31
+
+      - uses: nix develop .#frontend --accept-flake-config
+
+      - name: update bun.nix
+        run: |
+          bun2nix \
+            --lock-file frontend/bun.lock \
+            --output-file frontend/bun.nix
+
+      - uses: stefanzweifel/git-auto-commit-action@v4
+        if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
+        with:
+          commit_message: "style: format files"
