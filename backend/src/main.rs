@@ -46,22 +46,27 @@ async fn health() -> &'static str {
     "Hello World!"
 }
 
-async fn get_queue(State(state): State<AppState>) -> Json<Vec<String>> {
+async fn get_queue<'a>(State(state): State<AppState>) -> Json<Vec<String>> {
     Json::from(
         state
             .lock()
             .await
             .get_queue()
             .into_iter()
-            .cloned()
             .collect::<Vec<String>>(),
     )
 }
-async fn queue_robot(State(state): State<AppState>, Json(team): Json<String>) -> Json<Vec<String>> {
-    Json::from(state.lock().await.queue_robot(team).clone())
+
+async fn queue_robot<'a>(
+    State(state): State<AppState>,
+    Json(team): Json<String>,
+) -> Json<Vec<String>> {
+    let mut state = state.lock().await;
+    state.insert_robot(&team);
+    Json::from(state.get_queue())
 }
 
-async fn dequeue_robot(
+async fn dequeue_robot<'a>(
     State(state): State<AppState>,
     Json(team): Json<String>,
 ) -> (StatusCode, Json<Vec<String>>) {
@@ -75,4 +80,6 @@ async fn dequeue_robot(
     (status, queue)
 }
 
-async fn new_match() {}
+async fn new_match(State(state): State<AppState>) {
+    state.lock().await.pop_6();
+}

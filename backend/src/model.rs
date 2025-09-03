@@ -1,58 +1,48 @@
-use std::collections::HashMap;
-
-use tracing::info;
+use std::collections::{HashMap, VecDeque};
 
 #[derive(Clone, Default)]
 pub struct QueueState {
-    team_list: HashMap<String, Vec<Team>>,
-    queue: Vec<String>,
+    teams: Vec<String>,
+    team_to_index: HashMap<&'static str, usize>,
+    conflict_matrix: &'static [&'static [u8]],
+    queue: VecDeque<String>, // NOTE Not making this a reference cause we insert a request-given buffer
 }
 
 impl QueueState {
-    pub fn get_queue(&self) -> &Vec<String> {
-        &self.queue
+    pub fn get_queue(&self) -> Vec<String> {
+        self.queue.iter().map(|str| str.to_string()).collect()
     }
 
-    pub fn queue_robot(&mut self, team: impl ToString) -> &Vec<String> {
-        // let played_with = self.team_list.entry(team.to_string()).or_insert(Vec::new());
-        //
-        // let mut teams_count = HashMap::new();
-        // played_with.iter().for_each(|team| {
-        //     teams_count
-        //         .entry(team)
-        //         .and_modify(|n| {
-        //             *n += 1;
-        //         })
-        //         .or_insert(1);
-        // });
-        //
-        // let mut teams: Vec<(&String, i32)> = teams_count.into_iter().collect();
-        // teams.sort_by(|(_name, count), (_name_1, count_1)| count.cmp(count_1));
-        // let mut teams: Vec<String> = teams.into_iter().map(|x| x.0.clone()).collect();
-        //
-        // if self.queue.len() >= 6 {
-        //     let n = 2;
-        //     let top_n: Vec<String> = teams.split_off(n);
-        //     let (_rest_queue, bottom_6_queue) = self.queue.split_at(self.queue.len() - 6 - 1);
-        //
-        //     // Teams that `team` has played with frequently and that it would have been slated to play
-        //     // with again
-        //     let _problem_teams =
-        //         top_n
-        //             .iter()
-        //             .filter_map(|team_played| match bottom_6_queue.contains(team_played) {
-        //                 true => Some(team_played),
-        //                 false => None,
-        //             });
-        //
-        //     // TODO Figure out how to rearrange the queue
-        // }
-        //
-        // println!("{:?}", self.queue);
+    pub fn pop_6(&mut self) {
+        for _ in 0..6 {
+            self.queue.pop_front();
+        }
+    }
 
-        self.queue.push(team.to_string());
+    pub fn insert_robot(&mut self, team: impl ToString) {
+        let team = team.to_string();
+        let team_num = self.team_to_index.get(team.as_str()).unwrap();
+        let mut best_index = 0;
+        let mut best_score = u8::MAX;
 
-        &self.queue
+        self.teams
+            .windows(6)
+            .enumerate()
+            .for_each(|(i, neighbors)| {
+                let score = neighbors
+                    .iter()
+                    .map(|neighbor| {
+                        self.conflict_matrix[*team_num]
+                            [*self.team_to_index.get(neighbor.as_str()).unwrap()]
+                    })
+                    .sum::<u8>();
+
+                if score < best_score {
+                    best_score = score;
+                    best_index = i + 3;
+                }
+            });
+        self.queue.insert(best_index, team);
     }
 
     pub fn dequeue_robot(&mut self, team: &str) -> Result<(), ()> {
@@ -65,5 +55,3 @@ impl QueueState {
         Ok(())
     }
 }
-
-pub type Team = String;
